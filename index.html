@@ -2,12 +2,14 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>HLS YTDLP GUI v1</title>
+<title>HLS-YTDLP-GUI v1.1</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="dark-mode">
-
+<div class="controls">
+  <button id="updateYtDlp">Aggiorna yt-dlp</button>
+</div>
 <input type="text" id="url" placeholder="Incolla qui l'URL o il link..." />
 
 <div id="thumbnailContainer"></div>
@@ -62,7 +64,23 @@ const counter = document.getElementById('linkCounter');
 const progressBar = document.getElementById('progressBar');
 const thumbnailContainer = document.getElementById('thumbnailContainer');
 
-//const PLACEHOLDER_IMG = 'https://via.placeholder.com/200x112?text=No+Thumbnail';
+const updateYtDlpBtn = document.getElementById('updateYtDlp');
+
+updateYtDlpBtn.onclick = async () => {
+  logDiv.textContent += 'Aggiornamento di yt-dlp in corso...\n';
+  try {
+    const res = await window.api.updateYtDlp();
+    if(res.ok) {
+      logDiv.textContent += 'yt-dlp aggiornato correttamente!\n';
+      if(res.output) logDiv.textContent += res.output + '\n';
+    } else {
+      logDiv.textContent += 'Errore aggiornamento: ' + res.error + '\n';
+    }
+  } catch(err) {
+    logDiv.textContent += 'Errore: ' + err.message + '\n';
+  }
+  logDiv.scrollTop = logDiv.scrollHeight;
+};
 
 // --- Contatore link ---
 function updateLinkCounter() {

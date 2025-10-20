@@ -4,20 +4,20 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 const { spawn } = require('child_process');
-
+const { exec } = require('child_process');
 let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
-    height: 900,
+    height: 930,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true
     }
   });
   mainWindow.loadFile('index.html');
-  // mainWindow.webContents.openDevTools(); // opzionale
+  // mainWindow.webContents.openDevTools(); 
 }
 
 app.whenReady().then(createWindow);
@@ -113,6 +113,20 @@ ipcMain.handle('getThumbnailHTML', async (event, url) => {
   } catch (err) {
     return { ok: false, title: 'Errore', thumbnail: null };
   }
+});
+
+ipcMain.handle('update-yt-dlp', async () => {
+  return new Promise((resolve) => {
+    const isDev = !app.isPackaged;
+    const binPath = isDev
+      ? path.join(__dirname, 'bin', 'yt-dlp.exe') 
+      : path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'yt-dlp.exe'); 
+
+    exec(`"${binPath}" -U`, (error, stdout, stderr) => {
+      if (error) return resolve({ ok: false, error: stderr || error.message });
+      resolve({ ok: true, output: stdout });
+    });
+  });
 });
 
 ipcMain.handle('download:links', async (event, { links, binary = 'yt-dlp', format = 'video', playlist = false }) => {
