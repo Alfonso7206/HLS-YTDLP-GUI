@@ -1,0 +1,6 @@
+aggiungi i binary in questa cartella
+
+yt-dlp
+ffmpeg
+ffprobe
+ecc...

@@ -1,0 +1,42 @@
+{
+  "name": "hls-ytdlp-gui",
+  "version": "1.0.0",
+  "description": "HLS YTDLP GUI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dist": "electron-builder"
+  },
+  "author": "Alfonso Leoni",
+  "license": "AGPL-3.0-only",
+  "devDependencies": {
+    "electron": "^26.2.2",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {},
+  "build": {
+    "appId": "com.al.hls-ytdlp-gui",
+    "productName": "HLS YTDLP GUI",
+    "asar": true,
+    "asarUnpack": [
+      "bin/**/*"
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+	  "settings.html",
+      "style.css",
+      "assets/**/*",
+      "bin/**/*",
+      "*.bat",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
+  }
+}

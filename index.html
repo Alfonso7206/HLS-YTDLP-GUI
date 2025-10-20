@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>HLS YTDLP GUI v1</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark-mode">
+
+<input type="text" id="url" placeholder="Incolla qui l'URL o il link..." />
+
+<div id="thumbnailContainer"></div>
+
+<div class="horizontal-selects">
+  <select id="playlistSelect">
+    <option value="no">No playlist</option>
+    <option value="yes">Yes playlist</option>
+  </select>
+  <select id="binarySelect">
+    <option value="yt-dlp" selected>yt-dlp</option>
+    <option value="ffmpeg">ffmpeg</option>
+  </select>
+  <select id="formatSelect">
+    <option value="video">Video + Audio</option>
+    <option value="audio-mp3">Solo MP3 192K</option>
+  </select>
+</div>
+
+<div class="controls">
+  <button id="downloadText">Scarica link incollato</button>
+  <button id="extract">Ottieni link nascosti</button>
+</div>
+
+<label for="links">Link estratti: <span id="linkCounter">0</span></label>
+<select id="links" multiple style="width:100%; height:150px; margin-top:5px;"></select>
+
+<div class="controls">
+  <button id="removeSelectedBtn">Rimuovi Selezionati</button>
+  <button id="downloadList">Scarica link selezionati</button>
+</div>
+
+<h3>Log:</h3>
+<div id="log"></div>
+
+<div class="progress-container">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<script>
+const urlInput = document.getElementById('url');
+const linksSelect = document.getElementById('links');
+const downloadTextBtn = document.getElementById('downloadText');
+const extractBtn = document.getElementById('extract');
+const downloadListBtn = document.getElementById('downloadList');
+const removeSelectedBtn = document.getElementById('removeSelectedBtn');
+const binarySelect = document.getElementById('binarySelect');
+const formatSelect = document.getElementById('formatSelect');
+const playlistSelect = document.getElementById('playlistSelect');
+const logDiv = document.getElementById('log');
+const counter = document.getElementById('linkCounter');
+const progressBar = document.getElementById('progressBar');
+const thumbnailContainer = document.getElementById('thumbnailContainer');
+
+//const PLACEHOLDER_IMG = 'https://via.placeholder.com/200x112?text=No+Thumbnail';
+
+// --- Contatore link ---
+function updateLinkCounter() {
+  counter.textContent = linksSelect.options.length;
+}
+updateLinkCounter();
+
+// --- Popola listbox ---
+function populateLinks(links){
+  linksSelect.innerHTML = '';
+  links.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l;
+    opt.textContent = l;
+    linksSelect.appendChild(opt);
+  });
+  updateLinkCounter();
+}
+
+// --- Spezza righe lunghe ---
+function wrapLines(text, maxLen=80){
+  return text.split('\n').map(line=>{
+    if(line.length <= maxLen) return line;
+    const parts = [];
+    for(let i=0;i<line.length;i+=maxLen) parts.push(line.slice(i,i+maxLen));
+    return parts.join('\n');
+  }).join('\n');
+}
+
+// --- Mostra thumbnail ---
+async function showThumbnailForURL(url){
+  const container = document.getElementById('thumbnailContainer');
+  container.innerHTML = '';
+
+  if(!url) return;
+
+  const PLACEHOLDER = 'assets/placeholder.png';
+
+  try {
+    const res = await window.api.getThumbnailHTML(url);
+    const thumbnailUrl = (res.ok && res.thumbnail) ? res.thumbnail : PLACEHOLDER;
+    const titleText = (res.ok && res.title) ? res.title : 'Miniatura non disponibile';
+
+    const card = document.createElement('div');
+    card.classList.add('card');
+
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('img-wrapper');
+
+    const img = document.createElement('img');
+    img.src = thumbnailUrl;
+    img.alt = titleText;
+
+    wrapper.appendChild(img);
+    card.appendChild(wrapper);
+
+    const titleDiv = document.createElement('div');
+    titleDiv.classList.add('title');
+    titleDiv.textContent = titleText;
+
+    container.appendChild(card);
+    container.appendChild(titleDiv);
+
+  } catch(err){
+    console.error(err);
+    const card = document.createElement('div');
+    card.classList.add('card');
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('img-wrapper');
+    const img = document.createElement('img');
+    img.src = PLACEHOLDER;
+    img.alt = 'Errore caricamento thumbnail';
+    wrapper.appendChild(img);
+    card.appendChild(wrapper);
+
+    const titleDiv = document.createElement('div');
+    titleDiv.classList.add('title');
+    titleDiv.textContent = 'Errore caricamento thumbnail';
+
+    container.appendChild(card);
+    container.appendChild(titleDiv);
+  }
+}
+
+let thumbnailTimeout;
+
+urlInput.addEventListener('input', () => {
+  clearTimeout(window.thumbnailTimeout);
+  window.thumbnailTimeout = setTimeout(()=>{
+    const url = urlInput.value.trim();
+    if(url) showThumbnailForURL(url);
+  }, 500);
+});
+
+
+// --- Download link incollato ---
+downloadTextBtn.onclick = async () => {
+  const link = urlInput.value.trim();
+  if(!link) return alert('Inserisci un link!');
+
+  await showThumbnailForURL(link);
+
+  const format = formatSelect.value;
+  const binary = binarySelect.value;
+  const playlist = playlistSelect.value === 'yes';
+  logDiv.textContent = `Download in corso... (playlist: ${playlist ? 'SÌ' : 'NO'})\n`;
+  await window.api.downloadLinks({ links: [link], binary, format, playlist });
+  logDiv.textContent += 'Download completato.\n';
+  logDiv.scrollTop = logDiv.scrollHeight;
+};
+
+// --- Estrai link ---
+extractBtn.onclick = async () => {
+  const url = urlInput.value.trim();
+  if(!url) return alert('Inserisci un URL!');
+  logDiv.textContent = 'Estrazione in corso…\n';
+  const res = await window.api.extractFromUrl(url);
+  if(res.ok){
+    if(res.links.length === 0) logDiv.textContent += 'Nessun link trovato.\n';
+    else {
+      populateLinks(res.links);
+      logDiv.textContent += 'Link estratti, seleziona quelli da scaricare.\n';
+    }
+  } else logDiv.textContent += 'Errore: ' + res.error + '\n';
+  logDiv.scrollTop = logDiv.scrollHeight;
+};
+
+// --- Rimuovi link selezionati ---
+removeSelectedBtn.onclick = () => {
+  const selected = Array.from(linksSelect.selectedOptions);
+  selected.forEach(o => o.remove());
+  updateLinkCounter();
+};
+
+// --- Scarica link selezionati ---
+downloadListBtn.onclick = async () => {
+  const selectedLinks = Array.from(linksSelect.selectedOptions).map(o => o.value);
+  if(selectedLinks.length === 0) return alert('Seleziona almeno un link!');
+  const format = formatSelect.value;
+  const playlist = playlistSelect.value === 'yes';
+  logDiv.textContent = 'Download dei link selezionati in corso...\n';
+  await window.api.downloadLinks({ links: selectedLinks, binary: binarySelect.value, format, playlist });
+  logDiv.textContent += 'Download completato.\n';
+  logDiv.scrollTop = logDiv.scrollHeight;
+};
+
+// --- Log in tempo reale ---
+window.api.onDownloadLog((data)=>{
+  logDiv.textContent += wrapLines(data);
+  logDiv.scrollTop = logDiv.scrollHeight;
+});
+
+// --- Barra progresso ---
+window.api.onDownloadProgress((data)=>{
+  if(data.done){
+    progressBar.style.width = '100%';
+    setTimeout(()=>progressBar.style.width='0%',1000);
+  } else {
+    progressBar.style.width = `${data.percent}%`;
+  }
+});
+
+// --- Context menu ---
+window.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  window.api.showContextMenu();
+});
+</script>
+
+</body>
+</html>
